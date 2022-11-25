@@ -1,4 +1,5 @@
 var canvas = document.getElementById("canvas")
+var score_h1 = document.getElementById("Highscore")
 var ctx = canvas.getContext("2d")
 var width = 20, height = 20
 var bounds = [width, height]
@@ -12,12 +13,15 @@ var dirs = {
 }
 var dirs_adj = ["a","d","s","w"]
 var last_key
+var last_updated = 0
 
 var playing = false
 var move_interval
 var current_dir
+var score = 0
+var highscore = 0
 
-function end_game() {
+function end() {
     clearInterval(move_interval)
     playing = false
 }
@@ -39,8 +43,29 @@ function visualise_snake(snake) {
     for (pos of snake) {visualise((pos), "#FFFFFF")}
 }
 
-var move = NaN
-move = (snake)=>{
+function eval_arr(arr1, arr2) {
+    if (!arr1 || !arr2) {return false}
+    if (arr1.length != arr2.length) {return false}
+    for (let i = 0; i < arr1.length; arr1++) {
+        if (!(arr1[i]==arr2[i])) {return false}
+    }; return true
+}
+
+function check_overlap(pos, others) {
+    for (other of others) {
+        if (eval_arr(pos,other)) {return true}
+    }; return false
+}
+
+function place_food() {
+    food = [random(0,width),random(0,height)]
+    while (check_overlap(food,snake)) {
+        food = [random(0,width),random(0,height)]
+    }
+}
+
+
+var move = (snake)=>{
     var head = snake[0]
     var next = [...head]
     current_dir = move_dir
@@ -48,19 +73,24 @@ move = (snake)=>{
     for (let i = 0; i < 2; i++) {
         next[i] += move_dir[i]
         if (next[i] < 0 || next[i] >= bounds[i]) {
-            end_game(); return;
+            end(); return;
         }
     }
     // Check if snake colliding with itself
     for (pos of snake) {
         if (next[0] == pos[0] && next[1] == pos[1]) {
-            end_game(); return
+            end(); return
         }
     }
     // Check if head is colliding with food
     if (next[0] == food[0] && next[1] == food[1]) {
-        food = [random(0,width),random(0,height)]
+        place_food()
         snake.push([])
+        score = snake.length - 3
+        if (score > highscore) {
+            highscore = score
+            score_h1.innerHTML = "Highscore: " + highscore
+        }
     }
     // Move rest of snake body along
     for (let i = snake.length-1; i >= 1; i--) {
@@ -72,33 +102,28 @@ move = (snake)=>{
 
 document.addEventListener("keydown", (ev)=>{
     var key = ev.key.toLowerCase()
+    // This only works because checking against the reference
+    // in the dictionary to see if the move direction is
+    // invalid, not the actual value of the direction.
     if (playing && dirs[key]) {
         if (snake.length > 1) {
             index = dirs_adj.findIndex((a)=>{return a == key})
-            var invalid
             if (index % 2 == 0) {invalid = dirs_adj[index+1]}
             else {invalid = dirs_adj[index-1]}
             if (current_dir == dirs[invalid]) {return}
         }
         move_dir = dirs[key]
-    }
-    else if (!playing && dirs[key]) {
+    }else if (!playing && dirs[key]) {
         playing = true
         snake = [[3,1],[2,1],[1,1]]
-        move_dir = [1,0]
-
-        food = [random(0,width),random(0,height)]
-        visualise_snake(snake)
+        move_dir = dirs.d
+        current_dir = dirs.d
+        food = [7,1]
         move_interval = setInterval(()=>{
             move(snake); visualise_snake(snake); visualise(food, "#FF0000")
-            if (!playing) {
-                ctx.font = "15px monospace"
-                ctx.fillStyle = "#FFFFFF"
-                var size = canvas.width
-                ctx.fillText("GAME OVER",30,30)
-            }
-        },100)
-        console.log("t")
+            if (!playing) {score = 0}
+        },75)
     };
 })
-visualise_snake(snake)
+
+visualise_snake(snake); visualise(food, "#FF0000")
